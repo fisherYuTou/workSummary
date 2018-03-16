@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:dubbo="http://code.alibabatech.com/schema/dubbo"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://code.alibabatech.com/schema/dubbo
+        http://code.alibabatech.com/schema/dubbo/dubbo.xsd">
+
+    <!-- Application name -->
+    <dubbo:application name="shenzhen-police"  logger="slf4j" />
+    <!-- registry address, used for service to register itself -->
+     <dubbo:registry protocol="zookeeper" address="${dubbo.registry.address}" />
+    <!-- expose this service through dubbo protocol, through port 20880 -->
+    <dubbo:protocol name="dubbo" port="${dubbo.protocol.port}" />
+
+
+    <!-- 监控中心配置，protocol="registry"，表示从注册中心发现监控中心地址 -->
+    <!--<dubbo:monitor protocol="registry"/>-->
+
+    <!-- 当ProtocolConfig和ServiceConfig某属性没有配置时,采用此缺省值 -->
+    <dubbo:provider timeout="60000" threadpool="fixed" threads="100" accepts="1000" />
+
+    <!-- 账户子系统对外服务接口 -->
+    <dubbo:service retries="0" interface="com.hikvision.transform.service.NodeSelectService" ref="nodeSelectServiceImpl" timeout="60000" />
+
+</beans>
