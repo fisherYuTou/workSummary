@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>主页</title>
+		<link rel="stylesheet" href="js/bootstrap/css/bootstrap.min.css" />
+		<style type="text/css">
+			#navbar-top li{
+				width: 100px;
+				text-align: center;
+				margin-right: 1px;
+			}
+			
+			#navbar-top li{
+				width: 100px;
+				text-align: center;
+				margin-right: 1px;
+			}
+			
+			#navbar-top li:hover {
+				color: #fffff;
+				background-color: #c8bfec;
+			}
+			
+			.active-1 {
+				color: #fffff;
+				background-color: #c8bfec;
+			}
+
+
+			
+		</style>
+	</head>
+	<body>
+		<nav class="navbar navbar-inverse navbar-fixed-top" style="padding: 0 30px 0 30px;border:0px;">
+			<div class="navbar-header">
+				<div class="navbar-brand">
+					深圳交警后台测试系统
+				</div>
+			</div>
+			<ul id="navbar-top" class="navbar-nav nav" style="margin-left:40px;">
+				<li class="active-1"><a href="#">tab1</a></li>
+				<li><a href="#">tab2</a></li>
+				<li><a href="#">tab3</a></li>
+				<li><a href="#">tab4</a></li>
+			</ul>
+			<div style="float:right">
+				<a href="#" class="navbar-brand">欢迎您，admin</a>
+				<a href="#" class="navbar-brand">退出</a>
+			</div>
+		</nav>
+	</body>
+	<script src="js/jquery.js"></script>
+	<script type="text/javascript" src="js/bootstrap/js/bootstrap.min.js"></script>
+	<script type="text/javascript">
+		$(function(){
+			$("#navbar-top li").click(function(){
+				$(this).addClass("active-1").siblings().removeClass("active-1");
+			})
+		})
+	</script>
+	
+	
+</html>
