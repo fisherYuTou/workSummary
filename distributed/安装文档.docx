@@ -1,0 +1,483 @@
+2.	服务器规划
+操作系统版本为: 
+CentOS Linux release 7.1.1503 (Core)
+软件配置:
+服务器	安装软件
+Server1	Nginx+keepalived(主)         重定向服务(redirect)
+Server2	Postgresql(主)     redis(从)   重定向服务(redirect)
+Server3	Postgresql(从)     redis(主)   Nginx+keepalived(备)    
+Server4	Postgresql(日志)   redis(从)   重定向服务                 
+Server5	上传下载服务(transform)     可用虚拟机
+Server6	上传下载服务(transform)     可用虚拟机
+Server7	上传下载服务(transform)     可用虚拟机
+
+3.	安装包目录
+     
+
+ 
+
+4.	安装前准备
+将所需要的安装软件分别上传到对应的服务器上（如无特殊要求最好安装到/opt目录， 关闭防火墙, 上传yum安装包。 
+
+4.1	Centos7 关闭防火墙(重要)
+   systemctl stop firewalld.service
+   systemctl disable firewalld.service
+查看防火墙状态：
+firewall-cmd --state 
+ 
+结果如上图所示，则代表已经关闭
+
+4.2	上传” rpm-packages”到/opt目录
+          
+4.3	安装rpm packages
+cd /opt/rpm-packages
+rpm -Uvh --force --nodeps *.rpm
+
+
+5.	安装JDK(建议所有服务器都安装)
+5.1	上传 ”软件-jdk”里面的文件到/opt
+ 
+5.2	查看现有jdk
+rpm -qa|grep java
+ 
+若结果如上则跳过5.3
+
+5.3	删除现有jdk
+rpm -e --nodeps <jdk列表>
+
+5.4	安装jdk1.7
+rpm -ivh /opt/jdk-7u80-linux-x64.rpm
+
+5.5	验证JDK是否正确安装
+java -version
+ 
+如果结果如上，则代表安装正确
+
+6.	Nginx 安装(server1, server3)
+6.1	上传 ”软件-nginx” 里面的文件到/opt
+ 
+6.2	安装
+cd /opt
+tar -zxvf openresty-1.11.2.5.tar.gz
+cd openresty-1.11.2.5
+./configure
+gmake
+gmake install
+
+6.3	创建软链
+ln -s /usr/local/openresty/nginx/sbin/nginx  /usr/bin/nginx
+
+6.4	修改配置文件
+ vim /usr/local/openresty/nginx/conf/nginx.conf
+
+增加upstream（如果有多个重定向服务器，需要配置多个server, 例子是2个, 位置与server平级，可以参考配置样例）:
+        upstream myserver{
+          server 10.33.26.125:8080; # (重定向服务器IP+端口)
+          server 10.33.26.126:8080; # (重定向服务器IP+端口)
+        }
+替换原来的location /
+        location / {
+            set $urlParams '';
+            rewrite_by_lua_file lua/get_args.lua;
+            proxy_pass http://myserver$urlParams;
+        }
+配置样例：
+ 
+
+
+
+6.5	上传get_args.lua
+ cd /usr/local/openresty/nginx
+ mkdir lua
+ cd lua
+ cp /opt/get_args.lua ./
+
+6.6	启动openResty
+nginx -c /usr/local/openresty/nginx/conf/nginx.conf
+
+6.7	查看nginx是否安装成功
+ps -ef|grep nginx
+ 
+若结果如上图，则代表安装成功，如果失败，可以用以下脚本查看详情：
+tail -f /usr/local/openresty/nginx/logs/error.log
+
+
+7.	Keepalived安装(server1,server3)
+7.1	解压安装
+ cd /opt
+ tar -zxvf keepalived-1.3.4.tar.gz
+ cd keepalived-1.3.4
+ ./configure --prefix=/usr/local/keepalived --sysconf=/etc
+ make
+ make install
+7.2	建立软链
+ ln -s /usr/local/keepalived/sbin/keepalived /usr/sbin/keepalived
+7.3	修改配置文件()
+注意： 先清空原有文件内容，然后按主从添加对应的内容
+       Vim清空文件命令：dG
+vim /etc/keepalived/keepalived.conf
+ ============= 主节点配置=================
+global_defs {
+    router_id LVS_DEVEL_1
+}
+
+vrrp_script chk_nginx {  
+    script "/etc/keepalived/nginx_check.sh"  
+    interval 2  
+    weight -20  
+}  
+
+vrrp_instance VI_1 {
+    state MASTER
+    interface ens33         #网卡名称  可用ip addr查看
+    virtual_router_id 51
+    priority 100
+    advert_int 1
+    authentication {
+	    auth_type PASS
+	    auth_pass 1111
+    }
+
+    track_script {  
+	    chk_nginx  
+    } 
+
+    virtual_ipaddress {
+	    10.33.26.120       #虚拟IP（VIP）
+    }
+}
+
+=============从节点配置=======================
+global_defs {
+    router_id LVS_DEVEL_2
+}
+
+vrrp_script chk_nginx {  
+    script "/etc/keepalived/nginx_check.sh"  
+    interval 2  
+    weight -20  
+}  
+
+vrrp_instance VI_1 {
+    state backup
+    interface ens33         #网卡名称  可用ip addr查看
+    virtual_router_id 51
+    priority 98
+    advert_int 1
+    authentication {
+	    auth_type PASS
+	    auth_pass 1111
+    }
+
+    track_script {  
+	    chk_nginx  
+    } 
+
+    virtual_ipaddress {
+	    10.33.26.120       #虚拟IP（VIP）  
+    }
+}
+主配置截图如下：
+ 
+
+从配置截图如下：
+ 
+
+7.4	上传nginx_check.sh
+ cd /etc/keepalived
+ cp /opt/nginx_check.sh ./
+ chmod +x nginx_check.sh
+
+7.5	启动keepalived
+ keepalived -f /etc/keepalived/keepalived.conf
+
+7.6	查看keepalived是否安装成功
+ ps -ef|grep keepalived
+ 
+若结果如上图，则代表安装成功，如果失败，可以用以下脚本查看详情：
+tail -f /var/log/messages
+
+8.	Postgresql安装(server2-主，server3-从)
+8.1	上传 “软件-postgresql”里面的文件到/opt
+ 
+8.2	解压安装
+cd /opt
+rpm -ivh postgresql-9.6.6-1-x64-bigsql.rpm
+
+8.3	配置主从复制
+8.3.1	主机配置
+8.3.1.1	 初始化postgres
+/opt/postgresql/pgc start pg96
+按要求输入密码（eg:postgres）
+8.3.1.2	 初始化数据库(linux和windows二选一，建议用linux)
+8.3.1.3	Linux操作
+上传 “数据库初始化脚本-linux” 到/opt
+ 
+
+vim /opt/init_db.sh
+修改/opt/init_db.sh中的PG_HOST为主机IP，PGPASSWORD为8.2输入的postgres帐户密码
+ 
+
+chmod +x /opt/init_db.sh
+sh /opt/init_db.sh
+
+
+8.3.1.4	Windows操作
+确保Windows环境下有pg数据库的环境
+修改setup.bat中的localhost为主机IP, PGPASSWORD为8.2输入的postgres帐户密码， 执行行以下脚本：
+setup.bat
+备注: 1_create_db.sql中的数据库名称:image_text,如果需要自定义修改,请修改成你们需要的名字,其他不要改动.
+
+8.3.1.5	修改pg_hba.conf
+vim /opt/postgresql/data/pg96/pg_hba.conf
+增加 replica 用户(10.33.26.125为从机IP)，配置如下：
+host    replication     replica     <从机IP>/32                 md5
+配置截图如下：
+ 
+
+
+8.3.1.6	重启
+/opt/postgresql/pgc restart pg96
+
+8.3.2	从机配置
+8.3.2.1	 创建用户和组
+groupadd postgres
+useradd postgres -g postgres
+
+8.3.2.2	 将/opt/postgresql目录授权给postgres
+chown -R postgres:postgres /opt/postgresql
+
+8.3.2.3	 切换到postgres用户
+su postgres
+
+8.3.2.4	 从主节点拷贝数据到从节点
+/opt/postgresql/pg96/bin/pg_basebackup -h <主机IP> -U replica -D /opt/postgresql/data/pg96 -X stream
+
+8.3.2.5	 配置recovery.conf
+cp /opt/postgresql/pg96/share/postgresql/recovery.conf.sample /opt/postgresql/data/pg96/recovery.conf
+
+vim /opt/postgresql/data/pg96/recovery.conf
+修改如下配置：
+standby_mode = on    # 说明该节点是从服务器
+primary_conninfo = 'host=<主机IP> port=5432 user=replica password=replica'  # 主服务器的信息以及连接的用户
+recovery_target_timeline = 'latest'
+配置截图如下：
+ 
+
+
+8.3.2.6	 配置postgresql.conf
+vim /opt/postgresql/data/pg96/postgresql.conf
+修改配置如下：
+hot_standby = on
+
+8.3.2.7	 创建logs目录
+ mkdir /opt/postgresql/data/logs
+8.3.2.8	 启动
+/opt/postgresql/pg96/bin/pg_ctl start -D /opt/postgresql/data/pg96/ &
+
+8.3.3	验证主从复制
+登陆主机，查询：
+select client_addr,sync_state from pg_stat_replication;
+ 
+如果有记录，则代表配置成功
+
+9.	Redis安装
+9.1	说明
+server2-从, server3-从, server4-主，建议3台或以上， 高可用至少要保持2个sentinel节点存活
+
+9.2	上传“软件-redis- redis-4.0.6.tar.gz”到/opt
+9.3	解压安装
+cd /opt
+tar xzf redis-4.0.6.tar.gz
+cd redis-4.0.6
+make
+make install
+
+9.4	修改配置文件
+Redis.conf
+ 
+从机将标红的IP地址 改成 主机IP地址后上传至/opt/redis-4.0.6
+主机直接注掉281行上传至上传至/opt/redis-4.0.6
+
+Sentinel.conf
+ 
+		将标红的IP地址 改成 主机IP地址后上传至/opt/redis-4.0.6
+
+notify_mymaster.sh
+ 
+修改后上传至/opt/redis-4.0.6
+
+9.5	启动redis
+/opt/redis-4.0.6/src/redis-server /opt/redis-4.0.6/redis.conf
+
+9.6	验证主从配置
+/opt/redis-4.0.6/src/redis-cli -h <主机IP> -p 6379 info replication
+ 
+如果出现以上类似截图， 则代表配置成功
+
+9.7	高可用(HA )
+9.7.1	准备
+创建sentinel目录：
+mkdir /opt/redis-4.0.6/sentinel-dir
+
+授执行权限
+chmod +x /opt/redis-4.0.6/notify_mymaster.sh
+9.7.2	启动sentinel， 启用自动切换
+/opt/redis-4.0.6/src/redis-sentinel /opt/redis-4.0.6/sentinel.conf
+9.7.3	验证sentinel是否搭建成功
+/opt/redis-4.0.6/src/redis-cli -h <主机IP> -p 26379 info sentinel
+ 
+若结果如截图所示， 则代表成功。
+9.7.4	在主机上增加虚拟IP
+/sbin/ip addr add <虚拟IP>/24 dev <网卡名称>
+虚拟IP和网卡名称需要和9.4中配置的notify_mymaster中的配置保持一致
+
+
+10.	Zookeeper安装
+10.1	上传“软件-zookeeper”里面的文件到/opt
+10.2	解压
+cd /opt
+tar -zxvf zookeeper-3.4.6.tar.gz
+cd zookeeper-3.4.6/conf
+cp zoo_sample.cfg zoo.cfg
+sh /opt/zookeeper-3.4.6/bin/zkServer.sh start
+
+10.3	验证zookeeper是否安装成功
+ps -ef|grep QuorumPeerMain
+ 
+若上现上述截图， 则代表配置成功
+11.	部署上传下载服务器
+11.1	上传“软件-tomcat”里面的文件到/opt
+11.2	解压tomcat
+ cd /opt
+ unzip apache-tomcat-6.0.43.zip
+ mv apache-tomcat-6.0.43 tomcat-transform
+
+11.3	启动tomcat
+ 添加可执行权限：
+   chmod +x /opt/tomcat-transform/bin/*.sh
+ 启动tomcat
+   sh /opt/tomcat-transform/bin/startup.sh
+
+11.4	验证是否启动
+ curl localhost:8080
+ 
+ 若出现上述情况， 则代表配置成功
+
+11.5	创建“上传下载目录”
+        mkdir -p /opt/webapps/shenzhen-traffic-police-transform-server
+
+11.6	上传“软件-上传下载-war”里面的文件到“上传下载目录”并解压
+cd /opt/webapps/shenzhen-traffic-police-transform-server
+unzip shenzhen-traffic-police-transform-server.war
+
+
+11.7	移除项目名
+cd /opt/tomcat-transform/conf/Catalina/localhost
+vim ROOT.xml
+增加如下配置
+<Context path="" docBase="/opt/webapps/shenzhen-traffic-police-transform-server"  reloadable="false" />
+
+11.8	配置文件修改
+配置文件存储路径：/opt/webapps/shenzhen-traffic-police-transform-server/WEB-INF/lib/shenzhen-traffic-police-common-config-1.0-SNAPSHOT.jar 
+配置文件说明：
+db.properties： 存放数据库(postgresql)连接信息
+截图如下：
+ 
+dubbo.properties： 存放zookeeper连接信息
+ 
+一般只要改zookeeper的连接地址就行 
+redis.properties： 存放redis连接信息(配置)
+ 
+说明： 该redis.host配置为VIP地址
+11.9	端口修改说明（默认8080）
+如果遇特殊情况需要修改端口， 则需要同时修改/opt/webapps/shenzhen-traffic-police-redirect-server/WEB-INF/classes/ redirectConfig.properties文件中的端口号
+
+11.10	重启tomcat
+sh /opt/tomcat-transform/bin/shutdown.sh
+sh /opt/tomcat-transform/bin/startup.sh
+
+11.11	查看tomcat日志
+tail -f /opt/tomcat-transform/logs/catalina.out
+
+如果里面没有错误， 则代表配置成功
+
+12.	部署重定向服务器
+12.1	上传“软件-tomcat”里面的文件到/opt
+12.2	解压tomcat
+ cd /opt
+ unzip apache-tomcat-6.0.43.zip
+ mv apache-tomcat-6.0.43 tomcat-redirect
+
+12.3	启动tomcat
+ 添加可执行权限：
+   chmod +x /opt/tomcat-redirect/bin/*.sh
+ 启动tomcat
+   sh /opt/tomcat-redirect/bin/startup.sh
+
+12.4	验证是否启动
+ curl localhost:8080
+ 
+ 若出现上述情况， 则代表配置成功
+
+
+12.5	创建“重定向目录”
+        mkdir -p /opt/webapps/shenzhen-traffic-police-redirect-server
+
+12.6	上传“软件-重定向-war”里面的文件到“重定向目录”并解压
+cd /opt/webapps/shenzhen-traffic-police-redirect-server
+unzip shenzhen-traffic-police-redirect-server.war
+
+12.7	移除项目名
+cd /opt/tomcat-redirect/conf/Catalina/localhost
+vim ROOT.xml
+增加如下配置
+<Context path="" docBase="/opt/webapps/shenzhen-traffic-police-redirect-server"  reloadable="false" />
+
+12.8	配置文件说明
+配置文件存储路径：/opt/webapps/shenzhen-traffic-police-redirect-server/WEB-INF/lib/shenzhen-traffic-police-common-config-1.0-SNAPSHOT.jar 
+配置文件说明：
+db.properties： 存放数据库(postgresql)连接信息
+dubbo.properties： 存放zookeeper连接信息
+redis.properties： 存放redis连接信息
+配置文件说明：
+db.properties： 存放数据库(postgresql)连接信息
+截图如下：
+ 
+dubbo.properties： 存放zookeeper连接信息
+ 
+一般只要改zookeeper的连接地址就行 
+redis.properties： 存放redis连接信息(配置)
+ 
+说明： 该redis.host配置为VIP地址
+
+12.9	端口修改说明（默认8080）
+如果遇特殊情况需要修改端口， 则需要同时修改nginx（主从）配置文件中的重定向服务器的端口，如下图所示，
+ 
+
+12.10	重启tomcat
+sh /opt/tomcat-redirect/bin/shutdown.sh
+sh /opt/tomcat-redirect/bin/startup.sh
+
+12.11	查看tomcat日志
+tail -f /opt/tomcat-redirect/logs/catalina.out
+如果里面没有错误， 则代表配置成功
+
+13.	启动脚本汇总
+13.1	Nginx
+杀死：nginx -s stop
+启动：nginx
+
+13.2	Keepalived
+杀死： pkill keepalived
+启动： keepalived -f /etc/keepalived/keepalived.conf
+
+13.3	Postgresql 
+重启：/opt/postgresql/pgc restart pg96
+
+13.4	Redis
+杀死： pkill redis
+启动：
+/opt/redis-4.0.6/src/redis-server /opt/redis-4.0.6/redis.conf
+/opt/redis-4.0.6/src/redis-sentinel /opt/redis-4.0.6/sentinel.conf
+
