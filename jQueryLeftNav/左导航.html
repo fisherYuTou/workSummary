@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title></title>
+		
+		<link rel="stylesheet" href="../bootstrap/css/bootstrap.min.css" />
+		
+		<style type="text/css">
+			
+			body{
+				background: #fff;
+    			font: 12px Microsoft YaHei, arial, sans-serif;
+			}
+			
+			.list-title{
+				color:#f39800;
+				text-decoration: none;
+				font-size: 20px;
+				width:100%;
+				border:1px solid #ccc;
+				height: 60px;
+				display: inline-block;
+				line-height: 60px;
+				/*max-width: 200px;*/
+				text-align: center;
+				font-weight: bold;
+			}
+			
+			#leftnav ul{
+				padding: 0;
+				margin: 0;
+			}
+			
+			#leftnav li{
+				list-style-type: none;
+				position: relative;
+			}
+			
+			
+			.link-1{
+				width:100%;
+				height: 50px;
+				line-height: 50px;
+				border-left: 1px solid #ccc;
+				border-bottom: 1px solid #ccc;
+				border-right: 1px solid #ccc;
+				font-weight: 700;
+				padding-left:40px;
+				font-size: 14px;
+			}
+			
+
+			#leftnav ul li ul li{
+				width:100%;
+				height: 40px;
+				line-height: 40px;
+				border-left: 1px solid #ccc;
+				border-bottom: 1px solid #ccc;
+				border-right: 1px solid #ccc;
+				font-weight: 700;
+				padding-left:10px;
+				font-size: 14px;
+				list-style-type:none;
+				padding-left:40px;
+			}
+			
+			#leftnav ul li ul li a{
+				text-decoration: none;
+				color:#666;
+				
+			}
+	
+			.icon-left{
+				position:absolute;
+				left:15px;
+				top:18px;
+			}
+			
+			.icon-right{
+				position:absolute;
+				right:10px;
+				top:18px;
+			}
+			
+			.submenu{
+				display:none;
+			}
+			
+			
+		</style>
+		
+	</head>
+	<body>
+		
+		<div class="container" style="margin-top:60px;">
+			<div class="row">
+				<div class="col-md-2">
+					<div id="leftnav" style="width:200px;">
+						<a href="#" class="list-title">帐户总览</a>
+						<ul>
+							<li>
+								<div class="link-1">
+									<span class="glyphicon glyphicon-cog icon-left"></span>
+									产品管理
+									<span class="glyphicon glyphicon-chevron-down glyphicon-chevron-up icon-right"></span>
+								</div>
+								<ul class="submenu">
+									<li><a href="#">查看店铺</a></li>
+									<li><a href="#">查看店铺</a></li>
+									<li><a href="#">查看店铺</a></li>
+								</ul>
+							</li>
+							<li>
+								<div class="link-1">
+									<span class="glyphicon glyphicon-cog  icon-left"></span>
+									采购管理
+									<span class="glyphicon glyphicon-chevron-down glyphicon-chevron-up icon-right"></span>
+								</div>
+								<ul class="submenu">
+										<li><a href="#">查看店铺</a></li>
+										<li><a href="#">查看店铺</a></li>
+										<li><a href="#">查看店铺</a></li>
+								</ul>
+							</li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+		
+		
+		
+        <script src="http://www.jq22.com/jquery/jquery-1.10.2.js"></script>
+        <script type="text/javascript" src="../bootstrap/js/bootstrap.min.js" ></script>
+        
+        <script type="text/javascript">
+        	$(function(){		
+        		$(".link-1").click(function(){
+					$(this).next().slideToggle();
+					$(this).find(".icon-right").toggleClass("glyphicon-chevron-down")
+        		})
+        	})
+        </script>
+        
+        
+    </div>
+		
+	</body>
+</html>
