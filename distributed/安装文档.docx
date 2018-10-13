@@ -1,3 +1,10 @@
+
+1.	修订记录
+序号	变更时间	版本	变更人	审批人	变更说明
+1	20180202	V1.0.0	余延武， 干忠雷	张勇yf2, 杨玉苗， 郦剑波5	创建文档
+2	20180208	V1.0.1	余延武		修改离线安装说明和测试bug修复
+3	20180211	V1.0.1	余延武		测试bug修复
+
 2.	服务器规划
 操作系统版本为: 
 CentOS Linux release 7.1.1503 (Core)
@@ -236,7 +243,12 @@ host    replication     replica     <从机IP>/32                 md5
  
 
 
-8.3.1.6	重启
+8.3.1.6	修改postgresql.conf
+vim /opt/postgresql/data/pg96/postgresql.conf
+wal_log_hints=on
+full_page_writes = on
+
+8.3.1.7	重启
 /opt/postgresql/pgc restart pg96
 
 8.3.2	从机配置
@@ -311,7 +323,7 @@ notify_mymaster.sh
 /opt/redis-4.0.6/src/redis-server /opt/redis-4.0.6/redis.conf
 
 9.6	验证主从配置
-/opt/redis-4.0.6/src/redis-cli -h <主机IP> -p 6379 info replication
+/opt/redis-4.0.6/src/redis-cli -h 127.0.0.1 -p 6379 info replication
  
 如果出现以上类似截图， 则代表配置成功
 
@@ -325,7 +337,7 @@ chmod +x /opt/redis-4.0.6/notify_mymaster.sh
 9.7.2	启动sentinel， 启用自动切换
 /opt/redis-4.0.6/src/redis-sentinel /opt/redis-4.0.6/sentinel.conf
 9.7.3	验证sentinel是否搭建成功
-/opt/redis-4.0.6/src/redis-cli -h <主机IP> -p 26379 info sentinel
+/opt/redis-4.0.6/src/redis-cli -h 127.0.0.1 -p 26379 info sentinel
  
 若结果如截图所示， 则代表成功。
 9.7.4	在主机上增加虚拟IP
@@ -480,4 +492,6 @@ tail -f /opt/tomcat-redirect/logs/catalina.out
 启动：
 /opt/redis-4.0.6/src/redis-server /opt/redis-4.0.6/redis.conf
 /opt/redis-4.0.6/src/redis-sentinel /opt/redis-4.0.6/sentinel.conf
-
+/opt/redis-4.0.6/src/redis-cli -h 127.0.0.1 -p 6379 info replication
+/opt/redis-4.0.6/src/redis-cli -h 127.0.0.1 -p 26379 info sentinel
+tail -f /opt/redis-4.0.6/sentinel-dir/sentinel26379.log
